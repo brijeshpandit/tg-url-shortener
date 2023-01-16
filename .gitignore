@@ -1,0 +1,7 @@
+.idea/
+__pycache__/
+plugins/unknown_errors.txt
+*.session
+plugins/test.py
+plugins/config.py
+example.py
