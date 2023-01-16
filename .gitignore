@@ -5,3 +5,4 @@ plugins/unknown_errors.txt
 plugins/test.py
 plugins/config.py
 example.py
+plugins/shortener.py
