@@ -36,9 +36,6 @@ class Shortener(BaseShortener):
         response = self._get(self.api_url, params=params)
         if response.ok:
             return response.text.strip()
-        # print(response.content)
-        raise ShorteningErrorException(response.content)
-        # return response.content #f'http://v.gd/{list(custom)[0]}'
 
-# s = Shortener()
-# print(s.short('http://fb.com', "adobetest1"))
+        raise ShorteningErrorException(response.content)
+

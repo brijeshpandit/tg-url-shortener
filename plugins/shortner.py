@@ -88,8 +88,6 @@ async def custom(bot, update):
         disable_web_page_preview=True
     )
     await msg1.delete()
-    # global link_id
-    # link_id = update.message.reply_to_message.id
 
     msg2 = await bot.send_message(
         chat_id=msg1.chat.id,
@@ -111,6 +109,7 @@ async def custom(bot, update):
             )
             global reply_warning
             reply_warning = not_reply_msg
+
 @app.on_message(filters.private & filters.reply)
 async def custom_text(bot, update):
     global latest_msg, reply_warning
@@ -130,15 +129,8 @@ async def custom_text(bot, update):
             disable_web_page_preview=True,
             reply_to_message_id=update.id
         )
-        # del_msgs.append(after_cust)
-        # for i in range(0,len(del_msgs)):
-        #     await del_msgs[-1].delete()
-        #     del_msgs.pop()
-
         await after_cust.delete()
         await latest_msg.delete()
-        # await not_reply_msg.delete()
-        # await reply_warning.delete()
 
         try:
             custom_url = update.text
