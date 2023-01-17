@@ -11,17 +11,19 @@ app = Client("url_shortener_bot")
 regex_filters = filters.regex(r'[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
 req_filters = filters.private & regex_filters
 
+link = None
+link_msg = None
+link_id = None
 @app.on_message(req_filters | filters.command(['short']))
 async def reply_links(bot, update):
-    global link
-    link = ""
-    link_msg = ""
+    global link, link_msg, link_id
     if update.command:
-        link += update.reply_to_message.text
-        link_msg += str(update.reply_to_message_id)
+        link = update.reply_to_message.text
+        link_msg = str(update.reply_to_message_id)
     else:
-        link += update.matches[0].group(0)
-        link_msg += str(update.id)
+        link = update.matches[0].group(0)
+        link_msg = str(update.id)
+    link_id = update.id
 
     await bot.send_message(
         chat_id = update.chat.id,
@@ -55,7 +57,8 @@ async def random(bot, update):
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton(text='is.gd Link', url=url1)],
-                [InlineKeyboardButton(text='v.gd Link', url=url2)]
+                [InlineKeyboardButton(text='v.gd Link', url=url2)],
+                [InlineKeyboardButton(text='Custom', callback_data='custom')]
             ]
         ),
         disable_web_page_preview=True
@@ -69,6 +72,15 @@ CUSTOM_TEXT = """**Please enter your custom url by replying to this message**\n
 --> Can only contain alphabets, numbers, characters and underscores
 --> Shortened URLs are case sensitive`"""
 
+ALREADY_TAKEN_TEXT = """**The shortened URL you picked already exists, please choose another and reply to this message**\n
+**--NOTE--** :-\n
+`--> Specified url must be between 5 and 30 characters long
+--> Can only contain alphabets, numbers, characters and underscores
+--> Shortened URLs are case sensitive`"""
+
+latest_msg = None
+reply_warning = None
+
 @app.on_callback_query(filters.regex('custom'))
 async def custom(bot, update):
     msg1 = await update.message.edit_text(
@@ -76,8 +88,9 @@ async def custom(bot, update):
         disable_web_page_preview=True
     )
     await msg1.delete()
+    # global link_id
+    # link_id = update.message.reply_to_message.id
 
-    link_id = update.message.reply_to_message.id
     msg2 = await bot.send_message(
         chat_id=msg1.chat.id,
         text=CUSTOM_TEXT,
@@ -85,20 +98,51 @@ async def custom(bot, update):
         reply_to_message_id=link_id,
         reply_markup=ForceReply()
     )
-    @app.on_message(filters.private & filters.reply)
-    async def custom_text(bot, update):
-        if update.reply_to_message_id == msg2.id:
-            global custom_url
-            custom_url = update.text
-            after_cust = await update.reply_text(
-                text="`Please wait ...`",
+    global latest_msg
+    latest_msg = msg2
+
+    @app.on_message(filters.private)
+    async def not_reply(bot,update):
+        if update.id != (latest_msg.id-1):
+            not_reply_msg = await latest_msg.reply_text(
+                quote=True,
+                text='Please reply to this message!',
                 disable_web_page_preview=True
             )
-            await msg2.delete()
-            await after_cust.delete()
+            global reply_warning
+            reply_warning = not_reply_msg
+@app.on_message(filters.private & filters.reply)
+async def custom_text(bot, update):
+    global latest_msg, reply_warning
+    if reply_warning != None:
+        await reply_warning.delete()
 
+    if update.reply_to_message_id != latest_msg.id:
+        reply_warning = await bot.send_message(
+            chat_id=update.chat.id,
+            text='Oops!, it seems you\'ve replied to the wrong message, please reply to the above message!',
+            reply_to_message_id=latest_msg.id,
+            disable_web_page_preview=True
+        )
+    else:
+        after_cust = await update.reply_text(
+            text="`Checking availability, please wait...`",
+            disable_web_page_preview=True,
+            reply_to_message_id=update.id
+        )
+        # del_msgs.append(after_cust)
+        # for i in range(0,len(del_msgs)):
+        #     await del_msgs[-1].delete()
+        #     del_msgs.pop()
+
+        await after_cust.delete()
+        await latest_msg.delete()
+        # await not_reply_msg.delete()
+        # await reply_warning.delete()
+
+        try:
+            custom_url = update.text
             shorten_urls = await short(link, custom_url)
-
             await update.reply_text(
                 text=shorten_urls,
                 reply_markup=InlineKeyboardMarkup(
@@ -111,6 +155,50 @@ async def custom(bot, update):
                 disable_web_page_preview=True
             )
             print(f"Custom Link Generated for {update.chat.id}")
+        except:
+            already_taken = await bot.send_message(
+                chat_id=update.chat.id,
+                text=ALREADY_TAKEN_TEXT,
+                disable_web_page_preview=True,
+                reply_to_message_id=update.id,
+                reply_markup=ForceReply()
+            )
+            latest_msg = already_taken
+
+async def short(link, *custom):
+    shorten_urls = "**--Shortened URL--**\n"
+
+    # Is.gd shorten
+    try:
+        s = Shortener()
+        global url1, url2
+        url1 = ""
+        if custom:
+            url1 += s.isgd.short(link, list(custom)[0])
+        else:
+            url1 += s.isgd.short(link)
+        shorten_urls += f"\n**Your is.gd url :-** {url1}"
+    except Exception as error:
+        print(f"is.gd error :- {error}")
+
+    # # v.gd shorten
+    try:
+        s = Shortener()
+        url2 = ""
+        if custom:
+            url2 += s.vgd.short(link, list(custom)[0])
+        else:
+            url2 += s.vgd.short(link)
+        shorten_urls += f"\n**Your v.gd url :-** {url2}"
+    except Exception as error:
+        print(f"v.gd error :- {error}")
+
+    # Send the text
+    try:
+        shorten_urls += "\n\nThank you!"
+        return shorten_urls
+    except Exception as error:
+        return error
 
 @app.on_inline_query(filters.regex(r'https?://[^\s]+'))
 async def inline_short(bot, update):
@@ -137,39 +225,6 @@ async def inline_short(bot, update):
         results=answers
     )
 
-async def short(link, *custom):
-    shorten_urls = "**--Shortened URL--**\n"
 
-        # Is.gd shorten
-    try:
-        s = Shortener()
-        global url1
-        url1 = ""
-        if custom:
-            url1 += s.isgd.short(link, list(custom)[0])
-        else:
-            url1 += s.isgd.short(link)
-        shorten_urls += f"\n**Your is.gd url :-** {url1}"
-    except Exception as error:
-        print(f"is.gd error :- {error}")
-
-    # v.gd shorten
-    try:
-        s = Shortener()
-        global url2
-        url2 = ""
-        if custom:
-            url2 += s.vgd.short(link, list(custom)[0])
-        else:
-            url2 += s.vgd.short(link)
-        shorten_urls += f"\n**Your v.gd url :-** {url2}"
-    except Exception as error:
-        print(f"v.gd error :- {error}")
-
-    # Send the text
-    try:
-        shorten_urls += "\n\nThank you!"
-        return shorten_urls
-    except Exception as error:
-        return error
-
+print('Running')
+app.run()
