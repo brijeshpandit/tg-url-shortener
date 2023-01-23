@@ -4,7 +4,8 @@ from pyrogram.types import ForceReply
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from pyshorteners import Shortener
-from pyshorteners.base import BaseShortener
+from pyshorteners.exceptions import ShorteningErrorException
+import re
 
 app = Client("url_shortener_bot")
 
@@ -72,11 +73,28 @@ CUSTOM_TEXT = """**Please enter your custom url by replying to this message**\n
 --> Can only contain alphabets, numbers, characters and underscores
 --> Shortened URLs are case sensitive`"""
 
-ALREADY_TAKEN_TEXT = """**The shortened URL you picked already exists, please choose another and reply to this message**\n
+# ALREADY_TAKEN_TEXT = """**The shortened URL you picked already exists, please choose another and reply to this message**\n
+# **--NOTE--** :-\n
+# `--> Specified url must be between 5 and 30 characters long
+# --> Can only contain alphabets, numbers, characters and underscores
+# --> Shortened URLs are case sensitive`"""
+
+ALREADY_TAKEN_TEXT = """**{}, please try again**\n
 **--NOTE--** :-\n
 `--> Specified url must be between 5 and 30 characters long
 --> Can only contain alphabets, numbers, characters and underscores
 --> Shortened URLs are case sensitive`"""
+
+def error(error_txt):
+    if "already" in error_txt:
+        return "Error: The shortened URL you picked already exists, please choose another"
+    elif "least 5 character" in error_txt:
+        return "Error: Short URLs must be at least 5 characters long"
+    elif "maximum of 30" in error_txt:
+        return "Error: Short URLs must be a maximum of 30 characters long"
+    else:
+        return "Unknown error occurred"
+
 
 latest_msg = None
 reply_warning = None
@@ -150,7 +168,7 @@ async def custom_text(bot, update):
         except:
             already_taken = await bot.send_message(
                 chat_id=update.chat.id,
-                text=ALREADY_TAKEN_TEXT,
+                text=ALREADY_TAKEN_TEXT.format(error(error_text)),
                 disable_web_page_preview=True,
                 reply_to_message_id=update.id,
                 reply_markup=ForceReply()
@@ -171,6 +189,8 @@ async def short(link, *custom):
             url1 += s.isgd.short(link)
         shorten_urls += f"\n**Your is.gd url :-** {url1}"
     except Exception as error:
+        global error_text
+        error_text = str(error)
         print(f"is.gd error :- {error}")
 
     # # v.gd shorten

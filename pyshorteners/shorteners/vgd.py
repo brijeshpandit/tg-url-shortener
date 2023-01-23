@@ -36,6 +36,7 @@ class Shortener(BaseShortener):
         response = self._get(self.api_url, params=params)
         if response.ok:
             return response.text.strip()
-
         raise ShorteningErrorException(response.content)
 
+# s=Shortener()
+# print(s.short("www.adobe.com","Drivelink"))

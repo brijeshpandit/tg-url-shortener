@@ -1,7 +1,6 @@
 class ShorteningErrorException(Exception):
     def __init__(self, message=None):
-        super().__init__(f'There was an error on trying to short the url: '
-                         f'{message}')
+        super().__init__(f'{message}')
 
 
 class ExpandingErrorException(Exception):
