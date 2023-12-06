@@ -73,12 +73,6 @@ CUSTOM_TEXT = """**Please enter your custom url by replying to this message**\n
 --> Can only contain alphabets, numbers, characters and underscores
 --> Shortened URLs are case sensitive`"""
 
-# ALREADY_TAKEN_TEXT = """**The shortened URL you picked already exists, please choose another and reply to this message**\n
-# **--NOTE--** :-\n
-# `--> Specified url must be between 5 and 30 characters long
-# --> Can only contain alphabets, numbers, characters and underscores
-# --> Shortened URLs are case sensitive`"""
-
 ALREADY_TAKEN_TEXT = """**{}, please try again**\n
 **--NOTE--** :-\n
 `--> Specified url must be between 5 and 30 characters long
